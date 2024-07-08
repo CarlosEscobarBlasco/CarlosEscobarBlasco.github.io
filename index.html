@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Piano Interactivo Mejorado</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        #piano {
+            display: flex;
+            background-color: #000;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .tecla {
+            width: 40px;
+            height: 180px;
+            margin: 0 2px;
+            background-color: white;
+            border: 1px solid #000;
+            cursor: pointer;
+        }
+        .tecla.negra {
+            width: 24px;
+            height: 110px;
+            background-color: #000;
+            margin-left: -12px;
+            margin-right: -12px;
+            z-index: 1;
+        }
+        #controles {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #secuencia {
+            width: 300px;
+            height: 30px;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        #play {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="piano"></div>
+    <div id="controles">
+        <input type="text" id="secuencia" placeholder="Ingresa notas (ej: C D E F G A B)">
+        <button id="play">Play</button>
+    </div>
+
+    <script>
+        const piano = document.getElementById('piano');
+        const context = new (window.AudioContext || window.webkitAudioContext)();
+        const teclas = [
+            { nota: 'C', tipo: 'blanca', frecuencia: 261.63 },
+            { nota: 'C#', tipo: 'negra', frecuencia: 277.18 },
+            { nota: 'D', tipo: 'blanca', frecuencia: 293.66 },
+            { nota: 'D#', tipo: 'negra', frecuencia: 311.13 },
+            { nota: 'E', tipo: 'blanca', frecuencia: 329.63 },
+            { nota: 'F', tipo: 'blanca', frecuencia: 349.23 },
+            { nota: 'F#', tipo: 'negra', frecuencia: 369.99 },
+            { nota: 'G', tipo: 'blanca', frecuencia: 392.00 },
+            { nota: 'G#', tipo: 'negra', frecuencia: 415.30 },
+            { nota: 'A', tipo: 'blanca', frecuencia: 440.00 },
+            { nota: 'A#', tipo: 'negra', frecuencia: 466.16 },
+            { nota: 'B', tipo: 'blanca', frecuencia: 493.88 },
+            { nota: 'C2', tipo: 'blanca', frecuencia: 523.25 },
+            { nota: 'C#2', tipo: 'negra', frecuencia: 554.37 },
+            { nota: 'D2', tipo: 'blanca', frecuencia: 587.33 },
+            { nota: 'D#2', tipo: 'negra', frecuencia: 622.25 },
+            { nota: 'E2', tipo: 'blanca', frecuencia: 659.25 },
+            { nota: 'F2', tipo: 'blanca', frecuencia: 698.46 },
+            { nota: 'F#2', tipo: 'negra', frecuencia: 739.99 },
+            { nota: 'G2', tipo: 'blanca', frecuencia: 783.99 }
+        ];
+
+        teclas.forEach(tecla => {
+            const elemento = document.createElement('div');
+            elemento.className = `tecla ${tecla.tipo}`;
+            elemento.dataset.nota = tecla.nota;
+            elemento.dataset.frecuencia = tecla.frecuencia;
+            piano.appendChild(elemento);
+
+            elemento.addEventListener('mousedown', tocarNota);
+            elemento.addEventListener('mouseup', detenerNota);
+            elemento.addEventListener('mouseleave', detenerNota);
+        });
+
+        let oscillator = null;
+        let gainNode = null;
+
+        function tocarNota(e) {
+            const frecuencia = parseFloat(e.target.dataset.frecuencia);
+            oscillator = context.createOscillator();
+            gainNode = context.createGain();
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(frecuencia, context.currentTime);
+            oscillator.connect(gainNode);
+            gainNode.connect(context.destination);
+            oscillator.start();
+            gainNode.gain.setValueAtTime(1, context.currentTime);
+            e.target.style.backgroundColor = e.target.classList.contains('negra') ? '#333' : '#ddd';
+        }
+
+        function detenerNota(e) {
+            if (gainNode) {
+                gainNode.gain.setValueAtTime(gainNode.gain.value, context.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 1);
+                setTimeout(() => {
+                    if (oscillator) {
+                        oscillator.stop();
+                        oscillator.disconnect();
+                    }
+                    if (gainNode) {
+                        gainNode.disconnect();
+                    }
+                }, 1000);
+            }
+            e.target.style.backgroundColor = e.target.classList.contains('negra') ? '#000' : '#fff';
+        }
+
+        document.getElementById('play').addEventListener('click', reproducirSecuencia);
+
+        function reproducirSecuencia() {
+            const secuencia = document.getElementById('secuencia').value.toUpperCase().split(' ');
+            let tiempo = 0;
+            secuencia.forEach(nota => {
+                const tecla = teclas.find(t => t.nota === nota);
+                if (tecla) {
+                    setTimeout(() => {
+                        const elemento = document.querySelector(`[data-nota="${tecla.nota}"]`);
+                        tocarNota({ target: elemento });
+                        setTimeout(() => detenerNota({ target: elemento }), 500);
+                    }, tiempo);
+                    tiempo += 600;
+                }
+            });
+        }
+    </script>
+</body>
+</html>
